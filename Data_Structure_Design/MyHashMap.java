@@ -30,12 +30,14 @@ public class MyHashMap<K, V> {
     private int size;
     private float loadFactor;
 
+    @SuppressWarnings("unchecked")
     public MyHashMap() {
-        this.array = new Node[16];
+        this.array = new Node[DEFAULT_CAPACITY];
         this.size = 0;
-        this.loadFactor = 0.75F;
+        this.loadFactor = DEFAULT_LOAD_FACTOR;
     }
 
+    @SuppressWarnings("unchecked")
     public MyHashMap(int cap, float loadFactor) {
         if (cap <= 1) {
             throw new IllegalArgumentException("cap can not be <= 1");
@@ -47,7 +49,7 @@ public class MyHashMap<K, V> {
     }
 
     public int size() {
-        return this.size();
+        return this.size;
     }
 
     public boolean isEmpty() {
@@ -70,7 +72,7 @@ public class MyHashMap<K, V> {
         if (this.isEmpty()) {
             return false;
         } else {
-            Node[] var2 = this.array;
+            Node<K, V>[] var2 = this.array;
             int var3 = var2.length;
 
             for (int var4 = 0; var4 < var3; ++var4) {
@@ -88,9 +90,24 @@ public class MyHashMap<K, V> {
     private boolean equalsValue(V v1, V v2) {
         if (v1 == null && v2 == null) {
             return true;
-        } else {
-            return v1 != null && v2 != null ? v1.equals(v2) : false;
+        } else if (v1 == null || v2 == null) {
+            return false;
         }
+        return v1.equals(v2);
+    }
+
+    public V get(K key) {
+        int index = this.getIndex(key);
+
+        Node<K, V> node = this.array[index];
+        while (node != null) {
+            if (this.equalsKey(node.key, key)) {
+                return node.value;
+            }
+            node = node.next;
+        }
+
+        return null;
     }
 
     public boolean containsKey(K key) {
@@ -113,32 +130,23 @@ public class MyHashMap<K, V> {
         }
     }
 
-    public V get(K key) {
-        int index = this.getIndex(key);
-
-        for (Node<K, V> node = this.array[index]; node != null; node = node.next) {
-            if (this.equalsKey(node.key, key)) {
-                return node.value;
-            }
-        }
-
-        return null;
-    }
-
     public V put(K key, V value) {
         int index = this.getIndex(key);
-        Node<K, V> node = this.array[index];
+        Node<K, V> head = this.array[index];
+        Node<K, V> node = head;
 
-        Node head;
-        for (head = node; node != null; node = node.next) {
+        // if key exists, do update
+        while (node != null) {
             if (this.equalsKey(node.key, key)) {
-                V oldvalue = node.value;
+                V oldValue = node.value;
                 node.value = value;
-                return oldvalue;
+                return oldValue;
             }
+            node = node.next;
         }
 
-        Node<K, V> newNode = new Node(key, value);
+        // key is not exist, create a new node
+        Node<K, V> newNode = new Node<>(key, value);
         newNode.next = head;
         this.array[index] = newNode;
         ++this.size;
@@ -154,14 +162,15 @@ public class MyHashMap<K, V> {
         return ratio >= this.loadFactor;
     }
 
+    @SuppressWarnings("unchecked")
     private void rehashing() {
         Node<K, V>[] oldArray = this.array;
         float SCALE_FACTOR = 1.5F;
-        this.array = new Node[(int) ((float) this.array.length * 1.5F)];
-        Node[] var3 = oldArray;
+        this.array = new Node[(int) ((float) this.array.length * SCALE_FACTOR)];
+        Node<K, V>[] var3 = oldArray;
         int var4 = oldArray.length;
 
-        Node next;
+        Node<K, V> next;
         for (int var5 = 0; var5 < var4; ++var5) {
             for (Node<K, V> node = var3[var5]; node != null; node = next) {
                 next = node.next;
@@ -177,18 +186,21 @@ public class MyHashMap<K, V> {
         int index = this.getIndex(key);
         Node<K, V> node = this.array[index];
 
-        for (Node<K, V> pre = null; node != null; node = node.next) {
+        Node<K, V> pre = null;
+
+        while (node != null) {
             if (this.equalsKey(node.key, key)) {
                 if (pre != null) {
                     pre.next = node.next;
                 } else {
                     this.array[index] = node.next;
                 }
-
-                --this.size;
+                node.next = null;
+                size--;
                 return node.value;
             }
             pre = node;
+            node = node.next;
         }
         return null;
     }
